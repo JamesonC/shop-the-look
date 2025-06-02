@@ -40,7 +40,7 @@ This sample application is a great starting point for you to build your own mult
 We offer two installation methods for Shop The Look:
 
 1. [Demo Deployment](#%EF%B8%8F-demo-deployment-2-minutes) - quick setup for demo purposes
-3. [Full Deployment](#%EF%B8%8F-full-deployment-30-minutes) - bring your own images and videos + full setup
+2. [Full Deployment](#%EF%B8%8F-full-deployment-30-minutes) - bring your own images and videos + full setup
 
 #### Not sure which installation method to use? 
 
