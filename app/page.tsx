@@ -291,7 +291,7 @@ export default function Home() {
   return (
     <Layout>
       <Head>
-        <title>Shop The Look</title>
+        <title>Sock Drawer</title>
       </Head>
       <div
         className={`flex flex-col items-center justify-start min-h-screen bg-gray-100 ${dragging ? 'border-4 border-dashed border-blue-500' : ''
@@ -302,8 +302,8 @@ export default function Home() {
         style={{ fontFamily: "'Inter', 'Helvetica', 'Arial', sans-serif" }}
       >
         <div className="max-w-6xl w-full px-4 md:px-0 mt-12">
-          <h1 className="font-sans text-4xl mb-3 text-center text-indigo-800">Shop The Look</h1>
-          <h1 className="font-sans text-base mb-5 text-center text-gray-900">Upload a photo or video (under 4.5 MB) or search by text for outfit inspiration</h1>
+          <h1 className="font-sans text-4xl mb-3 text-center text-indigo-800">Sock Drawer 🧦</h1>
+          <h1 className="font-sans text-base mb-5 text-center text-gray-900">Upload a photo or or search by text for past sock inspiration</h1>
           <div className="max-w-xl mx-auto relative">
             <form onSubmit={handleSubmit} className="flex items-center">
               <div className="flex-grow flex items-center bg-white rounded shadow-md">
@@ -314,7 +314,7 @@ export default function Home() {
                     onChange={handleInputChange}
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder="Describe the outfit, or drag in an image or video"
+                    placeholder="Describe the sock, or drag in an image"
                     className="w-full flex-grow px-6 py-3 text-gray-700 bg-transparent focus:outline-none"
                     disabled={isUploading || isSearching}
                   />
