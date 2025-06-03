@@ -105,4 +105,6 @@ class Settings:
         }
 
         return url, headers, data
+    
+print("DEBUG: PINECONE_TOP_K =", os.getenv("PINECONE_TOP_K"))
 settings = Settings()
