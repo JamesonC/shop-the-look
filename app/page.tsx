@@ -298,7 +298,7 @@ export default function Home() {
       >
         <div className="max-w-6xl w-full px-4 md:px-0 mt-12">
           <h1 className="font-sans text-4xl mb-3 text-center text-indigo-800">Sock Drawer 🧦</h1>
-          <h1 className="font-sans text-base mb-5 text-center text-gray-900">Upload a photo or search by text for past sock inspiration</h1>
+          <h1 className="font-sans text-base mb-5 text-center text-gray-900">Beyond keywords: AI that understands the idea behind your words or pics—then finds the socks.</h1>
           <div className="max-w-xl mx-auto relative">
             <form onSubmit={handleSubmit} className="flex items-center">
               <div className="flex-grow flex items-center bg-white rounded shadow-md">
