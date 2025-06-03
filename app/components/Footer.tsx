@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
         </a>
         , and{' '}
         <a href="https://www.pexels.com/" target="_blank" rel="noopener noreferrer" className="text-indigo-800 hover:underline">
-          Pexels
+          Gooogle Cloud
         </a>
       </p>
     </div>

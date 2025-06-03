@@ -26,8 +26,8 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <html lang="en">
       <head>
-        <title>Shop The Look</title>
-        <meta name='description' content='Shop The Look is an outfit inspiration app built with Pinecone, Google Multimodal Embedding Model, and Next.js.' />
+        <title>Sock Drawer</title>
+        <meta name='description' content='Sock Drawer is a sock inspiration app built with Pinecone, Google Multimodal Embedding Model, and Next.js.' />
       </head>
       <body className={`${fira_mono.variable} ${roboto.variable}`}>
         {children}
