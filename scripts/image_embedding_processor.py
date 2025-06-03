@@ -14,51 +14,86 @@ Required Python packages:
 - vertexai
 - google-cloud-storage
 - pinecone-client
+- python-dotenv        # to load .env.development into os.environ :contentReference[oaicite:0]{index=0}
 
 Usage:
-1. Set up environment variables (see below)
-2. Run the script with the required arguments
-
-Example:
-python image_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
+1. Set up environment variables in `.env.development` (see below).
+2. Run the script with the required arguments:
+   python image_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
 """
 
-import base64
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import json
-import vertexai
-from pinecone import Pinecone
 import os
-import uuid
-import vertexai
-from datetime import datetime
+import json
+import base64
 import time
-from vertexai.vision_models import MultiModalEmbeddingModel, Image
-from google.cloud import storage
+import uuid
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-REGION = 'us-central1'
+from dotenv import load_dotenv                      # Load environment variables from .env.development :contentReference[oaicite:1]{index=1}
+import vertexai                                     # Vertex AI SDK for Python :contentReference[oaicite:2]{index=2}
+from vertexai.vision_models import MultiModalEmbeddingModel, Image  # Multimodal embedding model :contentReference[oaicite:3]{index=3}
+
+from google.oauth2 import service_account            # To create Credentials from base64 :contentReference[oaicite:4]{index=4}
+from google.cloud import storage                     # GCS client :contentReference[oaicite:5]{index=5}
+
+from pinecone import Pinecone                         # New Pinecone constructor (v3.x+) :contentReference[oaicite:6]{index=6}
+
+# Constants
+# Load .env.development so that os.getenv(...) picks up PINECONE_API_KEY, GOOGLE_CREDENTIALS_BASE64, etc.
+load_dotenv(os.path.join(os.path.dirname(__file__), "../.env.development"))  # :contentReference[oaicite:7]{index=7}
+
+REGION = os.getenv("GOOGLE_CLOUD_PROJECT_LOCATION", "us-east1")  # e.g., "us-east1" :contentReference[oaicite:8]{index=8}
 FILE_TYPE = 'image'
 
-def process_image(image_file, bucket_name, prefix, model, index, file_path, image_index, total_images, max_retries=5):
-    gcs_uri = f'gs://{bucket_name}/{prefix}/{image_file}'
 
-    # TODO: TEMPORARY FILE PATH
-    file_path = 'multi-modal-sample-app/pexels-clothing/' 
+def initialize_vertex_ai():
+    """Decode base64 JSON, build service-account creds, and init Vertex AI."""
+    b64_json = os.getenv("GOOGLE_CREDENTIALS_BASE64")  # retrieve base64‐encoded key :contentReference[oaicite:9]{index=9}
+    if not b64_json:
+        raise ValueError("GOOGLE_CREDENTIALS_BASE64 is not set")  # fail early if missing :contentReference[oaicite:10]{index=10}
+    decoded = base64.b64decode(b64_json).decode("utf-8")  # decode to JSON text :contentReference[oaicite:11]{index=11}
+    creds_info = json.loads(decoded)  # parse JSON into dict :contentReference[oaicite:12]{index=12}
+    credentials = service_account.Credentials.from_service_account_info(creds_info)  # create Credentials :contentReference[oaicite:13]{index=13}
 
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID")  # retrieve project ID :contentReference[oaicite:14]{index=14}
+    if not project_id:
+        raise ValueError("GOOGLE_CLOUD_PROJECT_ID is not set")  # ensure project is defined :contentReference[oaicite:15]{index=15}
+
+    # Initialize Vertex AI with explicit credentials :contentReference[oaicite:16]{index=16}
+    vertexai.init(
+        project=project_id,
+        location=REGION,
+        credentials=credentials
+    )
+
+
+def initialize_pinecone(index_name):
+    """Init Pinecone with API key and return the index object."""
+    api_key = os.getenv("PINECONE_API_KEY")  # retrieve Pinecone key :contentReference[oaicite:17]{index=17}
+    if not api_key:
+        raise ValueError("PINECONE_API_KEY is not set")  # fail if missing :contentReference[oaicite:18]{index=18}
+    # Create a Pinecone client instance (v3.x+ syntax) :contentReference[oaicite:19]{index=19}
+    pc = Pinecone(api_key=api_key)
+    return pc.Index(index_name)  # get reference to existing index 
+
+
+def process_image(image_file, bucket_name, prefix, model, index, total_images, image_index, max_retries=5):
+    """Download an image from GCS, embed via Vertex AI, and upsert to Pinecone."""
+    gcs_uri = f'gs://{bucket_name}/{prefix}/{image_file}'  # form GCS URI :contentReference[oaicite:21]{index=21}
     attempt = 0
     while attempt < max_retries:
         try:
+            # Load image from GCS via Vertex AI helper :contentReference[oaicite:22]{index=22}
             image = Image.load_from_file(gcs_uri)
 
-            embeddings = model.get_embeddings(
-                image=image,
-            )
+            embeddings = model.get_embeddings(image=image)  # generate embedding :contentReference[oaicite:23]{index=23}
 
             print(f"Received embeddings for: {image_file} ({image_index}/{total_images})")
 
             date_added = datetime.now().isoformat()
             embedding_id = str(uuid.uuid4())
-            
+
             vector = [
                 {
                     'id': embedding_id,
@@ -66,104 +101,84 @@ def process_image(image_file, bucket_name, prefix, model, index, file_path, imag
                     'metadata': {
                         'date_added': date_added,
                         'file_type': FILE_TYPE,
-                        'gcs_file_path': file_path,
+                        'gcs_file_path': f"{bucket_name}/{prefix}/",
                         'gcs_file_name': image_file,
                     }
                 }
             ]
-            index.upsert(vector)
+            index.upsert(vector)  # upsert to Pinecone 
             print(f"Processed and upserted: {image_file} ({image_index}/{total_images})")
-            break  # Exit loop if successful
+            break
         except Exception as e:
             print(f"Error processing file {image_file}: {e}")
             attempt += 1
             if attempt < max_retries:
-                wait_time = 5 ** attempt  # Exponential backoff
+                wait_time = 5 ** attempt
                 print(f"Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             else:
                 print(f"Failed to process file {image_file} after {max_retries} attempts.")
 
+
 def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
-    api_key = os.getenv('PINECONE_API_KEY')  # Pinecone API key
-    file_path = f'{gcs_bucket_name}/{gcs_folder_name}/'  # GCS bucket path
+    # 1) Initialize Vertex AI with service-account credentials :contentReference[oaicite:25]{index=25}
+    initialize_vertex_ai()
 
-    google_credentials_base64 = os.getenv('GOOGLE_CREDENTIALS_BASE64')
-    credentials_path = '/tmp/google-credentials.json'
+    # 2) Initialize Pinecone index :contentReference[oaicite:26]{index=26}
+    index = initialize_pinecone(pinecone_index_name)
 
-    if google_credentials_base64:
-        google_credentials = base64.b64decode(google_credentials_base64).decode('utf-8')
-        with open(credentials_path, 'w') as f:
-            f.write(google_credentials)
-        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
-
-    pc = Pinecone(api_key=api_key, source_tag="pinecone:stl_sample_app")
-    index = pc.Index(pinecone_index_name)
-
-    vertexai.init(project=gc_project_id, location=REGION)
-
+    # 3) Load the multimodal embedding model (1408 dims) :contentReference[oaicite:27]{index=27}
     model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
 
-    client = storage.Client()
+    # 4) List image files from GCS using explicit credentials :contentReference[oaicite:28]{index=28}
+    credentials = service_account.Credentials.from_service_account_info(
+        json.loads(base64.b64decode(os.getenv("GOOGLE_CREDENTIALS_BASE64")).decode("utf-8"))
+    )
+    client = storage.Client(project=gc_project_id, credentials=credentials)
     blobs = client.list_blobs(gcs_bucket_name, prefix=gcs_folder_name)
-    image_files = [blob.name.replace(gcs_folder_name + '/', '') for blob in blobs if blob.name.endswith(('jpeg', 'jpg', 'png', 'bmp', 'gif'))]
+    image_files = [
+        blob.name.replace(f"{gcs_folder_name}/", "")
+        for blob in blobs
+        if blob.name.lower().endswith(('.jpeg', '.jpg', '.png', '.bmp', '.gif'))
+    ]
 
     total_images = len(image_files)
+    if total_images == 0:
+        print(f"No images found in gs://{gcs_bucket_name}/{gcs_folder_name}/")
+        return
+
+    # 5) Process images in parallel using threading 
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(process_image, image_file, gcs_bucket_name, gcs_folder_name, model, index, file_path, i + 1, total_images) for i, image_file in enumerate(image_files)]
+        futures = []
+        for i, image_file in enumerate(image_files):
+            futures.append(executor.submit(
+                process_image,
+                image_file,
+                gcs_bucket_name,
+                gcs_folder_name,
+                model,
+                index,
+                total_images,
+                i + 1
+            ))
         for future in as_completed(futures):
-            future.result()  # This will re-raise any exceptions that occurred during processing
+            future.result()
+
 
 if __name__ == '__main__':
     import argparse
 
-    parser = argparse.ArgumentParser(description='Process images from a GCS bucket and upsert embeddings to Pinecone.')
-    parser.add_argument('-p', '--project', type=str, required=True, help='The Google Cloud project ID.')
-    parser.add_argument('-b', '--bucket', type=str, required=True, help='The Google Cloud Storage bucket.')
-    parser.add_argument('-f', '--folder', type=str, required=True, help='The GCS folder containing images in the bucket.')
-    parser.add_argument('-i', '--index', type=str, required=True, help='The Pinecone Index name.')
-
+    parser = argparse.ArgumentParser(
+        description="Generate and upsert image embeddings from GCS to Pinecone."
+    )
+    parser.add_argument('-p', '--project', type=str, required=True,
+                        help='Google Cloud project ID.')  # :contentReference[oaicite:30]{index=30}
+    parser.add_argument('-b', '--bucket', type=str, required=True,
+                        help='GCS bucket name.')
+    parser.add_argument('-f', '--folder', type=str, required=True,
+                        help='GCS folder containing images.')
+    parser.add_argument('-i', '--index', type=str, required=True,
+                        help='Pinecone index name.')
     args = parser.parse_args()
     main(args.project, args.bucket, args.folder, args.index)
 
-"""
-Setup Instructions:
-
-1. Environment Variables:
-   Set the following environment variables before running the script:
-
-   a. GOOGLE_CREDENTIALS_BASE64
-      Base64-encoded Google Cloud service account key JSON.
-      To set this:
-      - Get your service account key JSON file
-      - Encode it to base64:
-        $ base64 -i path/to/your/service-account-key.json | tr -d '\n'
-      - Set the environment variable:
-        $ export GOOGLE_CREDENTIALS_BASE64="<base64-encoded-string>"
-
-   b. PINECONE_API_KEY
-      Your Pinecone API key.
-      $ export PINECONE_API_KEY="your-pinecone-api-key"
-
-2. Install required Python packages:
-   $ pip install vertexai google-cloud-storage pinecone-client
-
-3. Setup Google Cloud authentication for your environment: https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-multimodal-embeddings#prereqs
-
-4. Run the script:
-   $ python image_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
-
-   Replace the placeholders with your actual values:
-   - your-gc-project-id: Your Google Cloud project ID
-   - your-gcs-bucket-name: The name of your GCS bucket containing the images
-   - your-gcs-folder-name: The folder name within the bucket where images are stored
-   - your-pinecone-index-name: The name of your Pinecone index
-
-Example command:
-$ python image_embedding_processor.py -p my-gcp-project -b my-image-bucket -f processed-images -i my-pinecone-index
-
-Notes:
-- Ensure that your Google Cloud service account has the necessary permissions to access the GCS bucket and use Vertex AI.
-- The script supports the following image formats: jpeg, jpg, png, bmp, gif.
-- The script uses exponential backoff for retrying failed operations, with a maximum of 5 attempts per image.
-"""
