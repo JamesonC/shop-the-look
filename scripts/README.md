@@ -16,7 +16,7 @@ This folder contains two scripts:
 
 # Setup
 
-The setup process mirrors the [Setup & Installation](https://github.com/pinecone-io/sample-apps/blob/main/shop-the-look/README.md) instructions in [Shop The Look's README](https://github.com/pinecone-io/sample-apps/blob/main/shop-the-look/README.md), so for additional detail, please consult that documentation first. 
+The setup process mirrors the [Setup & Installation](https://github.com/pinecone-io/sample-apps/blob/main/shop-the-look/README.md) instructions in [Sock Scout's README](https://github.com/pinecone-io/sample-apps/blob/main/shop-the-look/README.md), so for additional detail, please consult that documentation first.
 
 Here's a short summary:
 
@@ -53,7 +53,7 @@ Here's a short summary:
       - In the "New principals" text box, enter `allUsers`, and select a role "Storage Object Viewer". *Note: you can create an even more locked down role by creating a custom role with only `storage.objects.get` permissions and assign it to `allUsers`. The "Storage Object Viewer" role has list objects which you may not want to expose.*
       ![image](https://github.com/user-attachments/assets/0bfa1981-ef7a-4a1f-93e7-d9edb37c9afa)
 
-      - This allows the Vertex AI service to access your media files and display the assets in the Shop The Look frontend. 
+      - This allows the Vertex AI service to access your media files and display the assets in the Sock Scout frontend.
 
 # Command-line Help
 
