@@ -286,7 +286,7 @@ export default function Home() {
   return (
     <Layout>
       <Head>
-        <title>Sock Drawer</title>
+        <title>Sock Scout</title>
       </Head>
       <div
         className={`flex flex-col items-center justify-start min-h-screen bg-gray-100 ${dragging ? 'border-4 border-dashed border-blue-500' : ''
@@ -297,7 +297,7 @@ export default function Home() {
         style={{ fontFamily: "'Inter', 'Helvetica', 'Arial', sans-serif" }}
       >
         <div className="max-w-6xl w-full px-4 md:px-0 mt-12">
-          <h1 className="font-sans text-4xl mb-3 text-center text-indigo-800">Sock Drawer 🧦</h1>
+          <h1 className="font-sans text-4xl mb-3 text-center text-indigo-800">Sock Scout 🧦</h1>
           <h1 className="font-sans text-base mb-5 text-center text-gray-900">Beyond keywords: AI that understands the idea behind your words or pics—then finds the socks.</h1>
           <div className="max-w-xl mx-auto relative">
             <form onSubmit={handleSubmit} className="flex items-center">
