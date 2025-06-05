@@ -1,4 +1,10 @@
 node_modules
 .next
-.env*
+
+# Ignore only the actual secret‐holding files, not the “.example” template:
+.env.development
+.env.production
+.env.local
+
+# If you also have a Python virtual env folder:
 .venv/
