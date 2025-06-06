@@ -290,7 +290,7 @@ export default function Home() {
       </Head>
 
       <div
-        className={`flex flex-col items-center justify-start min-h-screen bg-[rgb(234,236,240)] ${
+        className={`flex flex-col items-center justify-start min-h-screen bg-gray-50 ${
           dragging ? "border-4 border-dashed border-blue-500" : ""
         }`}
         onDragOver={handleDragOver}
@@ -301,7 +301,7 @@ export default function Home() {
         <div className="w-full bg-white pb-8 border-b border-gray-200">
           {/* Notice the added "mx-auto" on this line so that max-w-6xl truly centers */}
           <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 space-y-4 text-center">
-            <h1 className="font-sans text-5xl text-indigo-700">
+            <h1 className="font-sans font-bold text-7xl text-[#CC2929]">
               Sock Scout
             </h1>
             <p className="font-sans text-lg text-gray-800 mb-4">
