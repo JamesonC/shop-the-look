@@ -333,7 +333,7 @@ export default function Home() {
                             className="px-6 py-1.5 hover:bg-gray-100 cursor-pointer text-gray-700 flex items-center"
                             onClick={() => handleSuggestionClick(suggestion)}
                           >
-                            <MagnifyingGlassIcon className="h-4 w-4 mr-3 text-indigo-500" />
+                            <MagnifyingGlassIcon className="h-4 w-4 mr-3 text-[#CC2929]" />
                             {suggestion}
                           </div>
                         ))}
@@ -396,7 +396,7 @@ export default function Home() {
                   } focus:outline-none`}
                   disabled={isInputEmpty || isUploading || isSearching}
                 >
-                  <MagnifyingGlassIcon className="h-6 w-6 text-indigo-500 hover:text-indigo-700" />
+                  <MagnifyingGlassIcon className="h-6 w-6 text-[#CC2929] hover:text-[#CC2929]" />
                 </button>
               </form>
 
