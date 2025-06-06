@@ -66,7 +66,13 @@ export default function Home() {
   const [isLoadingResults, setIsLoadingResults] = useState<boolean>(false);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
-  const suggestions = ["Food", "Clouds", "University", "Jetstream Stripes", "Vintage Propeller"];
+  const suggestions = [
+    "Food",
+    "Clouds",
+    "University",
+    "Jetstream Stripes",
+    "Vintage Propeller",
+  ];
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion);
     setIsInputEmpty(false);
@@ -91,7 +97,9 @@ export default function Home() {
     let scrollTracked = false;
     const handleScroll = () => {
       const scrollPercentage =
-        (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+        (window.scrollY /
+          (document.documentElement.scrollHeight - window.innerHeight)) *
+        100;
       if (scrollPercentage > 50 && !scrollTracked) {
         track("scroll_depth", { depth: "50%" });
         scrollTracked = true;
@@ -145,7 +153,9 @@ export default function Home() {
     results.forEach((result, index) => {
       if (result.metadata.file_type === "video") {
         const videoId = getVideoId(result, index);
-        const videoElement = document.getElementById(videoId) as HTMLVideoElement;
+        const videoElement = document.getElementById(
+          videoId
+        ) as HTMLVideoElement;
 
         if (videoElement && !playersRef.current[videoId]) {
           const player = videojs(videoElement, {
@@ -167,7 +177,9 @@ export default function Home() {
 
     return () => {
       Object.keys(playersRef.current).forEach((videoId) => {
-        if (!results.some((result, index) => getVideoId(result, index) === videoId)) {
+        if (
+          !results.some((result, index) => getVideoId(result, index) === videoId)
+        ) {
           playersRef.current[videoId].dispose();
           delete playersRef.current[videoId];
         }
@@ -212,9 +224,13 @@ export default function Home() {
     } catch (error) {
       console.error("Error during text search:", error);
       if (axios.isAxiosError(error) && error.response) {
-        setErrorMessage(`Oops! ${error.response.data.detail || "An unexpected error occurred"}`);
+        setErrorMessage(
+          `Oops! ${error.response.data.detail || "An unexpected error occurred"}`
+        );
       } else {
-        setErrorMessage("Oops! An unexpected error occurred. Our engineers have been notified.");
+        setErrorMessage(
+          "Oops! An unexpected error occurred. Our engineers have been notified."
+        );
       }
     } finally {
       setIsSearching(false);
@@ -289,14 +305,25 @@ export default function Home() {
         <title>Sock Scout</title>
       </Head>
 
+      {/* Make this container relative so we can absolutely position "Feedback" */}
       <div
-        className={`flex flex-col items-center justify-start min-h-screen bg-gray-50 ${
+        className={`relative flex flex-col items-center justify-start min-h-screen bg-gray-50 ${
           dragging ? "border-4 border-dashed border-blue-500" : ""
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* ─── Feedback link in top-right ─── */}
+        <a
+          href="https://forms.gle/4jk3KpF7vJ41efph6"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-4 right-4 text-sm text-gray-600 hover:text-gray-800"
+        >
+          Feedback
+        </a>
+
         {/* ─── Top section: white background from the very top down past the search bar ─── */}
         <div className="w-full bg-white pb-8 border-b border-gray-200">
           {/* Notice the added "mx-auto" on this line so that max-w-6xl truly centers */}
@@ -305,9 +332,10 @@ export default function Home() {
               Sock Scout
             </h1>
             <p className="font-sans text-xl text-gray-800 mb-4">
-              Beyond keywords: AI that understands the idea behind your words or pics—then finds the socks.
+              Beyond keywords: AI that understands the idea behind your words or
+              pics—then finds the socks.
             </p>
-            <div className="max-w-xl mx-auto relative">
+            <div className="max-w-xl mx-auto relative mt-6">
               <form onSubmit={handleSubmit} className="flex items-center">
                 <div className="flex-grow flex items-center bg-white rounded shadow-md border">
                   <div className="flex-grow relative">
@@ -316,7 +344,9 @@ export default function Home() {
                       value={query}
                       onChange={handleInputChange}
                       onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      onBlur={() =>
+                        setTimeout(() => setShowSuggestions(false), 200)
+                      }
                       placeholder="Describe the sock or drag in an image"
                       className="w-full flex-grow px-6 py-3 text-gray-700 bg-transparent focus:outline-none"
                       disabled={isUploading || isSearching}
