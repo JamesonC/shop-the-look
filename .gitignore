@@ -8,3 +8,4 @@ node_modules
 
 # If you also have a Python virtual env folder:
 .venv/
+.vercel

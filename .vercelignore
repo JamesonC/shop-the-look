@@ -1,0 +1,9 @@
+scripts/
+requirements.txt
+*.pyc
+__pycache__/
+.env*
+!.env.example
+node_modules/
+.next/
+.venv/
