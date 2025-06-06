@@ -304,7 +304,7 @@ export default function Home() {
             <h1 className="font-sans font-bold text-7xl text-[#CC2929]">
               Sock Scout
             </h1>
-            <p className="font-sans text-lg text-gray-800 mb-4">
+            <p className="font-sans text-xl text-gray-800 mb-4">
               Beyond keywords: AI that understands the idea behind your words or pics—then finds the socks.
             </p>
             <div className="max-w-xl mx-auto relative">
