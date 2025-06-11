@@ -36,7 +36,7 @@ Codebase Refactor
 
 Credential Management
 
-    - Provide a .env.example (or CLI flags) with placeholder AWS credentials and bucket name, to be swapped for real keys once obtained.
+    - Provide a .env.development (or CLI flags) with placeholder AWS credentials and bucket name, to be swapped for real keys once obtained.
 
 Documentation
 
