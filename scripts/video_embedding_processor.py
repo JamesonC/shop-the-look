@@ -1,7 +1,7 @@
 """
 Video Embedding Generator and Upserter
 
-This script processes videos from a Google Cloud Storage (GCS) bucket, generates embeddings using Vertex AI, and upserts them to a Pinecone index.
+This script processes videos from an AWS S3 bucket, generates embeddings using Vertex AI, and upserts them to a Pinecone index.
 
 Requirements:
 - Python 3.7+
@@ -11,7 +11,7 @@ Requirements:
 
 Required Python packages:
 - vertexai
-- google-cloud-storage
+- boto3
 - pinecone-client
 
 Usage:
@@ -32,7 +32,7 @@ from datetime import datetime
 
 import vertexai
 from vertexai.vision_models import MultiModalEmbeddingModel, Video
-from google.cloud import storage
+import boto3
 from pinecone import Pinecone
 
 # Constants
@@ -64,13 +64,31 @@ def setup_google_credentials():
     else:
         print("Warning: GOOGLE_CREDENTIALS_BASE64 environment variable not set.")
 
-def process_video(video_file, bucket_name, prefix, model, index, file_path, video_index, total_videos):
+def download_video_from_s3(bucket, key, client, max_retries=3):
+    wait = 1
+    for attempt in range(max_retries):
+        try:
+            resp = client.get_object(Bucket=bucket, Key=key)
+            return resp["Body"].read()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(wait)
+                wait *= 2
+            else:
+                raise e
+
+
+def process_video(video_file, bucket_name, prefix, model, index, file_path, video_index, total_videos, s3_client):
     """Process a single video file, generate embeddings, and upsert to Pinecone."""
-    gcs_uri = f'gs://{bucket_name}/{prefix}/{video_file}'
+    s3_key = f"{prefix}/{video_file}"
 
     for attempt in range(MAX_RETRIES):
         try:
-            video = Video.load_from_file(gcs_uri)
+            video_bytes = download_video_from_s3(bucket_name, s3_key, s3_client)
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.write(video_bytes)
+                tmp.flush()
+                video = Video.load_from_file(tmp.name)
             video_segment_config = VideoSegmentConfig(
                 interval_sec=INTERVAL_SEC,
                 start_offset_sec=START_OFFSET_SEC,
@@ -91,8 +109,8 @@ def process_video(video_file, bucket_name, prefix, model, index, file_path, vide
                     'metadata': {
                         'date_added': datetime.now().isoformat(),
                         'file_type': FILE_TYPE,
-                        'gcs_file_path': file_path,
-                        'gcs_file_name': video_file,
+                        's3_file_path': file_path,
+                        's3_file_name': video_file,
                         'segment': video_embedding.start_offset_sec // INTERVAL_SEC,
                         'start_offset_sec': video_embedding.start_offset_sec,
                         'end_offset_sec': video_embedding.end_offset_sec,
@@ -112,8 +130,8 @@ def process_video(video_file, bucket_name, prefix, model, index, file_path, vide
             else:
                 print(f"Failed to process file {video_file} after {MAX_RETRIES} attempts.")
 
-def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
-    """Main function to process videos from GCS and upsert embeddings to Pinecone."""
+def main(gc_project_id, s3_bucket_name, s3_folder_name, pinecone_index_name):
+    """Main function to process videos from S3 and upsert embeddings to Pinecone."""
     setup_google_credentials()
 
     # Initialize Pinecone
@@ -127,30 +145,31 @@ def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
     vertexai.init(project=gc_project_id, location=REGION)
     model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
 
-    # List video files in GCS bucket
-    client = storage.Client()
-    blobs = client.list_blobs(gcs_bucket_name, prefix=gcs_folder_name)
+    # List video files in S3 bucket
+    s3_client = boto3.client("s3", region_name=os.getenv("AWS_REGION"))
+    resp = s3_client.list_objects_v2(Bucket=s3_bucket_name, Prefix=s3_folder_name)
     video_files = [
-        blob.name.replace(f"{gcs_folder_name}/", "")
-        for blob in blobs
-        if blob.name.lower().endswith(SUPPORTED_VIDEO_FORMATS)
+        obj["Key"].replace(f"{s3_folder_name}/", "")
+        for obj in resp.get("Contents", [])
+        if obj["Key"].lower().endswith(SUPPORTED_VIDEO_FORMATS)
     ]
 
     # Process videos in parallel
     total_videos = len(video_files)
-    file_path = f'{gcs_bucket_name}/{gcs_folder_name}/'
+    file_path = f'{s3_bucket_name}/{s3_folder_name}/'
     with ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(
                 process_video,
                 video_file,
-                gcs_bucket_name,
-                gcs_folder_name,
+                s3_bucket_name,
+                s3_folder_name,
                 model,
                 index,
                 file_path,
                 i + 1,
-                total_videos
+                total_videos,
+                s3_client,
             )
             for i, video_file in enumerate(video_files)
         ]
@@ -158,10 +177,10 @@ def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
             future.result()  # This will re-raise any exceptions that occurred during processing
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process videos from a GCS bucket and upsert embeddings to Pinecone.')
+    parser = argparse.ArgumentParser(description='Process videos from an S3 bucket and upsert embeddings to Pinecone.')
     parser.add_argument('-p', '--project', type=str, required=True, help='The Google Cloud project ID.')
-    parser.add_argument('-b', '--bucket', type=str, required=True, help='The Google Cloud Storage bucket name.')
-    parser.add_argument('-f', '--folder', type=str, required=True, help='The GCS folder containing videos in the bucket.')
+    parser.add_argument('-b', '--bucket', type=str, required=True, help='The S3 bucket name.')
+    parser.add_argument('-f', '--folder', type=str, required=True, help='The S3 folder containing videos in the bucket.')
     parser.add_argument('-i', '--index', type=str, required=True, help='The Pinecone Index name.')
 
     args = parser.parse_args()
@@ -187,22 +206,22 @@ Setup Instructions:
       $ export PINECONE_API_KEY="your-pinecone-api-key"
 
 2. Install required Python packages:
-   $ pip install vertexai google-cloud-storage pinecone-client
+   $ pip install vertexai boto3 pinecone-client
 
 3. Run the script:
-   $ python video_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
+   $ python video_embedding_processor.py -p your-gc-project-id -b your-s3-bucket-name -f your-s3-folder-name -i your-pinecone-index-name
 
    Replace the placeholders with your actual values:
    - your-gc-project-id: Your Google Cloud project ID
-   - your-gcs-bucket-name: The name of your GCS bucket containing the videos
-   - your-gcs-folder-name: The folder name within the bucket where videos are stored
+   - your-s3-bucket-name: The name of your S3 bucket containing the videos
+   - your-s3-folder-name: The folder name within the bucket where videos are stored
    - your-pinecone-index-name: The name of your Pinecone index
 
 Example command:
 $ python video_embedding_processor.py -p my-gcp-project -b my-video-bucket -f processed-videos -i my-pinecone-index
 
 Notes:
-- Ensure that your Google Cloud service account has the necessary permissions to access the GCS bucket and use Vertex AI.
+- Ensure that your Google Cloud service account has the necessary permissions to access Vertex AI.
 - The script supports the following video formats: AVI, FLV, MKV, MOV, MP4, MPEG, MPG, WEBM, and WMV.
 - The script uses exponential backoff for retrying failed operations, with a maximum of 5 attempts per video.
 - Video embedding settings (INTERVAL_SEC, START_OFFSET_SEC, END_OFFSET_SEC) can be adjusted at the top of the script.

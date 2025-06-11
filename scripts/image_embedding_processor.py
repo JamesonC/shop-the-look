@@ -1,7 +1,7 @@
 """
 Image Embedding Generator and Upserter
 
-This script processes images from a Google Cloud Storage (GCS) bucket,
+This script processes images from an AWS S3 bucket,
 generates embeddings using Vertex AI, and upserts them to a Pinecone index.
 
 Requirements:
@@ -12,14 +12,14 @@ Requirements:
 
 Required Python packages:
 - vertexai
-- google-cloud-storage
+- boto3
 - pinecone-client
 - python-dotenv        # to load .env.development into os.environ :contentReference[oaicite:0]{index=0}
 
 Usage:
 1. Set up environment variables in `.env.development` (see below).
 2. Run the script with the required arguments:
-   python image_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
+   python image_embedding_processor.py -p your-gc-project-id -b your-s3-bucket-name -f your-s3-folder-name -i your-pinecone-index-name
 """
 
 import os
@@ -27,6 +27,7 @@ import json
 import base64
 import time
 import uuid
+import tempfile
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -35,7 +36,7 @@ import vertexai                                     # Vertex AI SDK for Python :
 from vertexai.vision_models import MultiModalEmbeddingModel, Image  # Multimodal embedding model :contentReference[oaicite:3]{index=3}
 
 from google.oauth2 import service_account            # To create Credentials from base64 :contentReference[oaicite:4]{index=4}
-from google.cloud import storage                     # GCS client :contentReference[oaicite:5]{index=5}
+import boto3                                         # AWS S3 client
 
 from pinecone import Pinecone                         # New Pinecone constructor (v3.x+) :contentReference[oaicite:6]{index=6}
 
@@ -78,14 +79,31 @@ def initialize_pinecone(index_name):
     return pc.Index(index_name)  # get reference to existing index 
 
 
-def process_image(image_file, bucket_name, prefix, model, index, total_images, image_index, max_retries=5):
-    """Download an image from GCS, embed via Vertex AI, and upsert to Pinecone."""
-    gcs_uri = f'gs://{bucket_name}/{prefix}/{image_file}'  # form GCS URI :contentReference[oaicite:21]{index=21}
+def download_from_s3(bucket, key, client, max_retries=3):
+    wait = 1
+    for attempt in range(max_retries):
+        try:
+            resp = client.get_object(Bucket=bucket, Key=key)
+            return resp["Body"].read()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(wait)
+                wait *= 2
+            else:
+                raise e
+
+
+def process_image(image_file, bucket_name, prefix, model, index, total_images, image_index, s3_client, max_retries=5):
+    """Download an image from S3, embed via Vertex AI, and upsert to Pinecone."""
+    s3_key = f"{prefix}/{image_file}"
     attempt = 0
     while attempt < max_retries:
         try:
-            # Load image from GCS via Vertex AI helper :contentReference[oaicite:22]{index=22}
-            image = Image.load_from_file(gcs_uri)
+            image_bytes = download_from_s3(bucket_name, s3_key, s3_client)
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.write(image_bytes)
+                tmp.flush()
+                image = Image.load_from_file(tmp.name)
 
             embeddings = model.get_embeddings(image=image)  # generate embedding :contentReference[oaicite:23]{index=23}
 
@@ -101,8 +119,8 @@ def process_image(image_file, bucket_name, prefix, model, index, total_images, i
                     'metadata': {
                         'date_added': date_added,
                         'file_type': FILE_TYPE,
-                        'gcs_file_path': f"{bucket_name}/{prefix}/",
-                        'gcs_file_name': image_file,
+                        's3_file_path': f"{bucket_name}/{prefix}/",
+                        's3_file_name': image_file,
                     }
                 }
             ]
@@ -120,7 +138,7 @@ def process_image(image_file, bucket_name, prefix, model, index, total_images, i
                 print(f"Failed to process file {image_file} after {max_retries} attempts.")
 
 
-def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
+def main(gc_project_id, s3_bucket_name, s3_folder_name, pinecone_index_name):
     # 1) Initialize Vertex AI with service-account credentials :contentReference[oaicite:25]{index=25}
     initialize_vertex_ai()
 
@@ -130,21 +148,18 @@ def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
     # 3) Load the multimodal embedding model (1408 dims) :contentReference[oaicite:27]{index=27}
     model = MultiModalEmbeddingModel.from_pretrained("multimodalembedding@001")
 
-    # 4) List image files from GCS using explicit credentials :contentReference[oaicite:28]{index=28}
-    credentials = service_account.Credentials.from_service_account_info(
-        json.loads(base64.b64decode(os.getenv("GOOGLE_CREDENTIALS_BASE64")).decode("utf-8"))
-    )
-    client = storage.Client(project=gc_project_id, credentials=credentials)
-    blobs = client.list_blobs(gcs_bucket_name, prefix=gcs_folder_name)
+    # 4) List image files from S3
+    s3_client = boto3.client("s3", region_name=os.getenv("AWS_REGION"))
+    resp = s3_client.list_objects_v2(Bucket=s3_bucket_name, Prefix=s3_folder_name)
     image_files = [
-        blob.name.replace(f"{gcs_folder_name}/", "")
-        for blob in blobs
-        if blob.name.lower().endswith(('.jpeg', '.jpg', '.png', '.bmp', '.gif'))
+        obj["Key"].replace(f"{s3_folder_name}/", "")
+        for obj in resp.get("Contents", [])
+        if obj["Key"].lower().endswith((".jpeg", ".jpg", ".png", ".bmp", ".gif"))
     ]
 
     total_images = len(image_files)
     if total_images == 0:
-        print(f"No images found in gs://{gcs_bucket_name}/{gcs_folder_name}/")
+        print(f"No images found in s3://{s3_bucket_name}/{s3_folder_name}/")
         return
 
     # 5) Process images in parallel using threading 
@@ -154,12 +169,13 @@ def main(gc_project_id, gcs_bucket_name, gcs_folder_name, pinecone_index_name):
             futures.append(executor.submit(
                 process_image,
                 image_file,
-                gcs_bucket_name,
-                gcs_folder_name,
+                s3_bucket_name,
+                s3_folder_name,
                 model,
                 index,
                 total_images,
-                i + 1
+                i + 1,
+                s3_client,
             ))
         for future in as_completed(futures):
             future.result()
@@ -169,14 +185,14 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Generate and upsert image embeddings from GCS to Pinecone."
+        description="Generate and upsert image embeddings from S3 to Pinecone."
     )
     parser.add_argument('-p', '--project', type=str, required=True,
                         help='Google Cloud project ID.')  # :contentReference[oaicite:30]{index=30}
     parser.add_argument('-b', '--bucket', type=str, required=True,
-                        help='GCS bucket name.')
+                        help='S3 bucket name.')
     parser.add_argument('-f', '--folder', type=str, required=True,
-                        help='GCS folder containing images.')
+                        help='S3 folder containing images.')
     parser.add_argument('-i', '--index', type=str, required=True,
                         help='Pinecone index name.')
     args = parser.parse_args()
