@@ -3,6 +3,12 @@ import base64
 from datetime import datetime, timedelta
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
+from dotenv import load_dotenv
+
+# Load environment variables from a file before accessing them.
+# Priority: DOTENV_PATH env var, otherwise fall back to `.env.<ENVIRONMENT>`.
+env_file = os.getenv("DOTENV_PATH") or f".env.{os.getenv('ENVIRONMENT', 'development')}"
+load_dotenv(dotenv_path=env_file, override=True)
 
 class Settings:
     def __init__(self):
@@ -19,7 +25,12 @@ class Settings:
         # Pinecone services
         self.api_key = os.getenv('PINECONE_API_KEY')
         self.index_name = os.getenv('PINECONE_INDEX_NAME')
-        self.k = int(os.getenv('PINECONE_TOP_K')) 
+        self.k = int(os.getenv('PINECONE_TOP_K'))
+
+        # Basic validation for required variables
+        missing = [var for var in ['PINECONE_API_KEY', 'PINECONE_INDEX_NAME', 'PINECONE_TOP_K'] if not os.getenv(var)]
+        if missing:
+            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing)}")
     
     def get_credentials(self):
         if self.credentials:
