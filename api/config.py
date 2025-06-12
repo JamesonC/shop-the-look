@@ -3,13 +3,20 @@ import base64
 from datetime import datetime, timedelta
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
+from dotenv import load_dotenv
+
+# Load environment variables from a file before accessing them.
+# Priority: DOTENV_PATH env var, otherwise fall back to `.env.<ENVIRONMENT>`.
+env_file = os.getenv("DOTENV_PATH") or f".env.{os.getenv('ENVIRONMENT', 'development')}"
+load_dotenv(dotenv_path=env_file, override=True)
 
 class Settings:
     def __init__(self):
         # Google services
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
         self.location = os.getenv('GOOGLE_CLOUD_PROJECT_LOCATION')
-        self.gcs_bucket_name = os.getenv('GOOGLE_CLOUD_STORAGE_BUCKET_NAME')
+        # AWS S3 bucket used for asset storage
+        self.s3_bucket_name = os.getenv('S3_BUCKET_NAME')
         self.google_credentials_base64 = os.getenv('GOOGLE_CREDENTIALS_BASE64')
         self.credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS') or '/tmp/google-credentials.json'
         self.access_token = None
@@ -19,7 +26,12 @@ class Settings:
         # Pinecone services
         self.api_key = os.getenv('PINECONE_API_KEY')
         self.index_name = os.getenv('PINECONE_INDEX_NAME')
-        self.k = int(os.getenv('PINECONE_TOP_K')) 
+        self.k = int(os.getenv('PINECONE_TOP_K'))
+
+        # Basic validation for required variables
+        missing = [var for var in ['PINECONE_API_KEY', 'PINECONE_INDEX_NAME', 'PINECONE_TOP_K'] if not os.getenv(var)]
+        if missing:
+            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing)}")
     
     def get_credentials(self):
         if self.credentials:

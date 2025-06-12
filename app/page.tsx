@@ -38,9 +38,9 @@ const API_URL = (() => {
 interface Result {
   score: number;
   metadata: {
-    gcs_file_name: string;
-    gcs_public_url: string;
-    gcs_file_path: string;
+    s3_file_name: string;
+    s3_public_url: string;
+    s3_file_path: string;
     file_type: "image" | "video" | "text";
     start_offset_sec: number;
     end_offset_sec: number;
@@ -297,7 +297,7 @@ export default function Home() {
   };
 
   const getVideoId = (result: Result, index: number) =>
-    `video-${index}-${result.metadata.gcs_public_url}`;
+    `video-${index}-${result.metadata.s3_public_url}`;
 
   return (
     <Layout>
@@ -518,14 +518,14 @@ export default function Home() {
                   <div key={videoId}>
                     {result.metadata.file_type === "image" ? (
                       <img
-                        src={result.metadata.gcs_public_url}
+                        src={result.metadata.s3_public_url}
                         alt="Result"
                         className="w-full h-auto object-cover mt-2 rounded hover-shadow"
                       />
                     ) : (
                       <div className="video-container mt-2 rounded hover-shadow">
                         <video id={videoId} className="video-js vjs-default">
-                          <source src={result.metadata.gcs_public_url} type="video/mp4" />
+                          <source src={result.metadata.s3_public_url} type="video/mp4" />
                           Your browser does not support the video tag.
                         </video>
                       </div>

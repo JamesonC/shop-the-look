@@ -8,3 +8,5 @@ google-auth-oauthlib==1.2.0
 google-auth-httplib2==0.2.0
 python-multipart
 Pillow
+python-dotenv==1.0.1
+boto3==1.34.121
