@@ -15,7 +15,8 @@ class Settings:
         # Google services
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
         self.location = os.getenv('GOOGLE_CLOUD_PROJECT_LOCATION')
-        self.gcs_bucket_name = os.getenv('GOOGLE_CLOUD_STORAGE_BUCKET_NAME')
+        # AWS S3 bucket used for asset storage
+        self.s3_bucket_name = os.getenv('S3_BUCKET_NAME')
         self.google_credentials_base64 = os.getenv('GOOGLE_CREDENTIALS_BASE64')
         self.credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS') or '/tmp/google-credentials.json'
         self.access_token = None

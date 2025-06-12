@@ -19,7 +19,7 @@ Usage:
 2. Run the script with the required arguments
 
 Example:
-python video_embedding_processor.py -p your-gc-project-id -b your-gcs-bucket-name -f your-gcs-folder-name -i your-pinecone-index-name
+python video_embedding_processor.py -p your-gc-project-id -b your-s3-bucket-name -f your-s3-folder-name -i your-pinecone-index-name
 """
 
 import argparse
