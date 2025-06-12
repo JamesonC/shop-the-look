@@ -19,9 +19,8 @@ import {
 } from "./components/Icons";
 import Footer from "./components/Footer";
 import { handleFileUpload } from "./components/FileUploadHandler";
-import Nav from "./components/Navbar";  // <-- updated import
+import Nav from "./components/Navbar";
 
-// Handles Python backend API URL based on the environment
 const API_URL = (() => {
   switch (process.env.NEXT_PUBLIC_VERCEL_ENV) {
     case "development":
@@ -93,26 +92,28 @@ export default function Home() {
 
   const playersRef = useRef<{ [key: string]: VideoJsPlayer }>({});
 
-  const VerticalDivider = () => <div className="h-6 w-px bg-gray-200"></div>;
+  const VerticalDivider = () => <div className="h-6 w-px bg-gray-200" />;
 
+  // Scroll-tracking
   useEffect(() => {
-    let scrollTracked = false;
-    const handleScroll = () => {
-      const scrollPercentage =
+    let tracked = false;
+    const onScroll = () => {
+      const pct =
         (window.scrollY /
           (document.documentElement.scrollHeight - window.innerHeight)) *
         100;
-      if (scrollPercentage > 50 && !scrollTracked) {
+      if (pct > 50 && !tracked) {
         track("scroll_depth", { depth: "50%" });
-        scrollTracked = true;
+        tracked = true;
       }
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Page-view analytics
   useEffect(() => {
-    const pageViewData = {
+    const data = {
       timestamp: new Date().toISOString(),
       screenSize: `${window.screen.width}x${window.screen.height}`,
       deviceType: /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop",
@@ -123,66 +124,59 @@ export default function Home() {
       totalVectors,
       appVersion: process.env.NEXT_PUBLIC_APP_VERSION || "unknown",
     };
-
-    track("page_viewed", pageViewData);
+    track("page_viewed", data);
   }, [totalVectors]);
 
+  // Fetch Pinecone stats
   useEffect(() => {
-    const fetchTotalVectors = async () => {
+    (async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/index/info`);
-        setTotalVectors(response.data.total_vectors);
-      } catch (error) {
-        console.error("Error fetching total vectors:", error);
+        const res = await axios.get(`${API_URL}/api/index/info`);
+        setTotalVectors(res.data.total_vectors);
+      } catch (e) {
+        console.error("Error fetching stats:", e);
       }
-    };
-    fetchTotalVectors();
+    })();
   }, []);
 
+  // Cleanup video.js players
   useEffect(() => {
     return () => {
-      Object.values(playersRef.current).forEach((player) => {
-        if (player && typeof player.dispose === "function") {
-          player.dispose();
-        }
-      });
+      Object.values(playersRef.current).forEach((p) =>
+        typeof p.dispose === "function" ? p.dispose() : null
+      );
       playersRef.current = {};
     };
   }, []);
 
+  // Initialize video.js for results
   useEffect(() => {
-    results.forEach((result, index) => {
-      if (result.metadata.file_type === "video") {
-        const videoId = getVideoId(result, index);
-        const videoElement = document.getElementById(
-          videoId
-        ) as HTMLVideoElement;
-
-        if (videoElement && !playersRef.current[videoId]) {
-          const player = videojs(videoElement, {
+    results.forEach((r, i) => {
+      if (r.metadata.file_type === "video") {
+        const vidId = `video-${i}-${r.metadata.s3_public_url}`;
+        const el = document.getElementById(vidId) as HTMLVideoElement;
+        if (el && !playersRef.current[vidId]) {
+          const player = videojs(el, {
             aspectRatio: "1:1",
             fluid: true,
             controls: true,
             muted: true,
             preload: "auto",
           });
-
           player.one("ready", () => {
-            player.currentTime(result.metadata.start_offset_sec);
+            player.currentTime(r.metadata.start_offset_sec);
           });
-
-          playersRef.current[videoId] = player;
+          playersRef.current[vidId] = player;
         }
       }
     });
-
     return () => {
-      Object.keys(playersRef.current).forEach((videoId) => {
+      Object.keys(playersRef.current).forEach((vidId) => {
         if (
-          !results.some((result, index) => getVideoId(result, index) === videoId)
+          !results.some((_, idx) => `video-${idx}-${results[idx].metadata.s3_public_url}` === vidId)
         ) {
-          playersRef.current[videoId].dispose();
-          delete playersRef.current[videoId];
+          playersRef.current[vidId].dispose();
+          delete playersRef.current[vidId];
         }
       });
     };
@@ -196,38 +190,29 @@ export default function Home() {
     setErrorMessage(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isInputEmpty) return;
-
     setShowSuggestions(false);
     resetSearchState();
-
     setIsSearching(true);
-    setIsSearchComplete(false);
-    setSearchTime(null);
     setSearchType("text");
     setErrorMessage(null);
     setIsLoadingResults(true);
-    const startTime = Date.now();
+    const start = Date.now();
 
     try {
-      const response = await axios.post(`${API_URL}/api/search/text`, { query });
-      setResults(response.data.results);
-      const endTime = Date.now();
-      setSearchTime(endTime - startTime);
+      const res = await axios.post(`${API_URL}/api/search/text`, { query });
+      setResults(res.data.results);
+      setSearchTime(Date.now() - start);
       setIsSearchComplete(true);
       track("search_results", { searchType, query, searchTime });
-    } catch (error) {
-      console.error("Error during text search:", error);
-      if (axios.isAxiosError(error) && error.response) {
-        setErrorMessage(
-          `Oops! ${error.response.data.detail || "An unexpected error occurred"}`
-        );
+    } catch (err) {
+      console.error("Search error:", err);
+      if (axios.isAxiosError(err) && err.response) {
+        setErrorMessage(`Oops! ${err.response.data.detail || "Unexpected error."}`);
       } else {
-        setErrorMessage(
-          "Oops! An unexpected error occurred. Our engineers have been notified."
-        );
+        setErrorMessage("Oops! An unexpected error occurred.");
       }
     } finally {
       setIsSearching(false);
@@ -236,10 +221,10 @@ export default function Home() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-    setIsInputEmpty(value.trim() === "");
-    setShowSuggestions(value.trim() !== "");
+    const val = e.target.value;
+    setQuery(val);
+    setIsInputEmpty(!val.trim());
+    setShowSuggestions(!!val.trim());
   };
 
   const handleFileUploadWrapper = async (file: File) => {
@@ -260,41 +245,28 @@ export default function Home() {
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       track("file_selected");
       await handleFileUploadWrapper(e.target.files[0]);
     }
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setDragging(true);
   }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setDragging(false);
   }, []);
-
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       track("file_dropped");
       await handleFileUploadWrapper(e.dataTransfer.files[0]);
     }
   };
-
-  const getScoreLabel = (score: number) => ({
-    score: score.toFixed(4),
-  });
-
-  const getVideoId = (result: Result, index: number) =>
-    `video-${index}-${result.metadata.s3_public_url}`;
 
   return (
     <Layout>
@@ -303,68 +275,38 @@ export default function Home() {
       </Head>
 
       <div
-        className={`relative flex flex-col items-center justify-start min-h-screen bg-gray-50 ${
-          dragging ? "border-4 border-dashed border-blue-500" : ""
-        }`}
+        className={`relative flex flex-col items-center min-h-screen bg-white ${dragging ? "border-4 border-dashed border-blue-500" : ""
+          }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* ─── Global navigation bar with Feedback button ─── */}
+        {/* Global nav */}
         <Nav />
 
-        {/* ─── Top section: white background down past the search bar ─── */}
-        <div className="w-full bg-white pb-8 border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 space-y-4 text-center">
-            <h1 className="font-sans font-bold text-7xl text-[#CC2929]">
+        {/* Hero / search */}
+        <div className="w-full bg-white pb-8 border-gray-200">
+          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center space-y-4">
+            <h1 className="text-5xl md:text-6xl font-bold text-[#171111]">
               Find your perfect sock
             </h1>
-            <p className="font-sans text-xl text-gray-800 mb-4">
+            <p className="text-lg text-gray-800">
               Our semantic AI search understands the nuances of your sock
               preferences, allowing you to find the perfect match with text or
               image.
             </p>
-            <div className="max-w-xl mx-auto relative mt-6">
+
+            <div className="max-w-xl mx-auto mt-6 relative">
               <form onSubmit={handleSubmit} className="flex items-center">
-                <div className="flex-grow flex items-center bg-white rounded shadow-md border">
-                  <div className="flex-grow relative">
-                    <input
-                      type="text"
-                      value={query}
-                      onChange={handleInputChange}
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() =>
-                        setTimeout(() => setShowSuggestions(false), 200)
-                      }
-                      placeholder="Describe the sock or drag in an image"
-                      className="w-full flex-grow px-6 py-3 text-gray-700 bg-transparent focus:outline-none"
-                      disabled={isUploading || isSearching}
-                    />
-                    {showSuggestions && suggestions.length > 0 && (
-                      <div
-                        className="absolute left-0 right-0 mt-2 w-full bg-white border rounded shadow-lg max-h-60 overflow-y-auto z-10"
-                        style={{ width: "calc(100% + 59px)", marginLeft: "-1px" }}
-                      >
-                        <div className="mt-3"></div>
-                        {suggestions.map((suggestion, index) => (
-                          <div
-                            key={index}
-                            className="px-6 py-1.5 hover:bg-gray-100 cursor-pointer text-gray-700 flex items-center"
-                            onClick={() => handleSuggestionClick(suggestion)}
-                          >
-                            <MagnifyingGlassIcon className="h-4 w-4 mr-3 text-[#CC2929]" />
-                            {suggestion}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                <div className="flex-grow flex items-center bg-white rounded shadow border">
                   <input
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleFileChange}
-                    style={{ display: "none" }}
-                    id="upload-input"
+                    type="text"
+                    value={query}
+                    onChange={handleInputChange}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    placeholder="Describe the sock or drag in an image"
+                    className="w-full px-6 py-3 text-gray-700 focus:outline-none"
                     disabled={isUploading || isSearching}
                   />
                   {!isInputEmpty && (
@@ -372,168 +314,173 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={clearResults}
-                        className="text-gray-400 hover:text-gray-500 mr-0.5 focus:outline-none"
-                        disabled={isUploading || isSearching}
+                        className="text-gray-400 hover:text-gray-600 px-2 focus:outline-none"
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="44"
-                          height="44"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <line x1="15" y1="9" x2="9" y2="15" />
-                          <line x1="9" y1="9" x2="15" y2="15" />
-                        </svg>
+                        ×
                       </button>
                       <VerticalDivider />
                     </>
                   )}
                   <label
                     htmlFor="upload-input"
-                    className={`cursor-pointer px-4 ${
-                      isUploading || isSearching
+                    className={`cursor-pointer px-4 ${isUploading || isSearching
                         ? "text-gray-400"
                         : "text-gray-500 hover:text-gray-700"
-                    } focus:outline-none`}
+                      }`}
                   >
                     <PhotoFrameIcon className="h-6 w-6" />
                   </label>
                 </div>
+                <input
+                  id="upload-input"
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={isUploading || isSearching}
+                />
                 <button
                   type="submit"
-                  className={`ml-1 px-3 ${
-                    isInputEmpty
+                  className={`ml-2 p-2 focus:outline-none ${isInputEmpty
                       ? "text-gray-400 cursor-not-allowed"
-                      : isUploading || isSearching
-                      ? "text-gray-400 cursor-wait"
-                      : "text-gray-500 hover:text-gray-700"
-                  } focus:outline-none`}
+                      : "text-red-600 hover:text-red-700"
+                    }`}
                   disabled={isInputEmpty || isUploading || isSearching}
                 >
-                  <MagnifyingGlassIcon className="h-6 w-6 text-[#CC2929] hover:text-[#CC2929]" />
+                  <MagnifyingGlassIcon className="h-6 w-6" />
                 </button>
               </form>
 
-              {errorMessage && (
-                <div className="w-full mt-4 text-red-500 text-center">
-                  {errorMessage}
+              {/* Suggestions */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border rounded shadow-lg z-10">
+                  {suggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
+                      onClick={() => handleSuggestionClick(s)}
+                    >
+                      <MagnifyingGlassIcon className="h-4 w-4 mr-2 text-red-600" />
+                      {s}
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {/* Error or loading */}
+              {errorMessage && <div className="mt-4 text-red-500">{errorMessage}</div>}
               {(isUploading || isSearching) && (
-                <div className="w-full mt-8 flex items-center justify-center">
-                  <span className="text-gray-500 pulse">
-                    {isUploading
-                      ? "Uploading, embedding, and searching..."
-                      : "Searching..."}
-                  </span>
-                  <div className="ml-3 spinner border-4 border-t-transparent border-indigo-300 rounded-full w-6 h-6 animate-spin" />
+                <div className="mt-4 text-gray-600">
+                  {isUploading
+                    ? "Uploading, embedding, and searching..."
+                    : "Searching..."}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* ─── Below the search bar: light gray background ─── */}
-        <div className="max-w-6xl w-full px-4 md:px-0 mt-6 mx-auto">
-          {isSearchComplete && searchTime !== null && totalVectors !== null && (
-            <div className="ml-1 mb-2 flex items-center text-left text-gray-700">
-              <p>
-                Searched {totalVectors.toLocaleString()} styles
-                {searchType === "text" && (
-                  <> for <strong className="text-indigo-800">{query}</strong></>
-                )}
-                {searchType === "image" && (
-                  <> for <strong className="text-indigo-800">your image</strong></>
-                )}
-                {searchType === "video" && (
-                  <> for <strong className="text-indigo-800">your video</strong></>
-                )}
-              </p>
-              <button
-                type="button"
-                onClick={clearResults}
-                className="text-gray-400 hover:text-gray-500 mb-0.4 ml-2 focus:outline-none"
-                disabled={isUploading || isSearching}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+        {/* Results */}
+        <div className="w-full bg-white pt-6">
+          <div className="max-w-6xl mx-auto px-4 md:px-0">
+            {isSearchComplete && totalVectors !== null && (
+              <div className="mb-4 text-gray-700 flex items-center">
+                <span>
+                  Searched {totalVectors.toLocaleString()} styles{" "}
+                  {searchType === "text" && <>for <strong>{query}</strong></>}
+                  {searchType === "image" && <>for your image</>}
+                  {searchType === "video" && <>for your video</>}
+                </span>
+                <button
+                  onClick={clearResults}
+                  className="ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              </button>
-            </div>
-          )}
-          {isLoadingResults && (
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(20)].map((_, index) => (
-                <div key={index} className="animate-pulse">
-                  <div className="bg-gray-300 h-64 w-full rounded-sm"></div>
-                  <div className="h-4 bg-gray-300 rounded w-3/4 mt-2"></div>
-                </div>
-              ))}
-            </div>
-          )}
-          {!isLoadingResults && results.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {results.map((result, index) => {
-                const { score } = getScoreLabel(result.score);
-                const videoId = getVideoId(result, index);
-                return (
-                  <div key={videoId}>
-                    {result.metadata.file_type === "image" ? (
-                      <img
-                        src={result.metadata.s3_public_url}
-                        alt="Result"
-                        className="w-full h-auto object-cover mt-2 rounded hover-shadow"
-                      />
-                    ) : (
-                      <div className="video-container mt-2 rounded hover-shadow">
-                        <video id={videoId} className="video-js vjs-default">
-                          <source
-                            src={result.metadata.s3_public_url}
-                            type="video/mp4"
+                  ×
+                </button>
+              </div>
+            )}
+
+            {isLoadingResults ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-200 h-64 rounded" />
+                ))}
+              </div>
+            ) : (
+              results.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {results.map((r, i) => {
+                    const key = `result-${i}`;
+                    const url = r.metadata.s3_public_url;
+                    console.log(`Result ${i} URL:`, url);
+
+                    return (
+                      <div
+                        key={key}
+                        className="
+                          group 
+                          bg-white 
+                          p-2 
+                          rounded-lg 
+                          transition-transform transition-shadow 
+                          hover:-translate-y-1 hover:shadow-lg
+                        "
+                      >
+                        {r.metadata.file_type === "image" ? (
+                          <img
+                            src={url}
+                            alt={r.metadata.s3_file_name}
+                            className="w-full h-auto object-cover rounded-md"
                           />
-                          Your browser does not support the video tag.
-                        </video>
-                      </div>
-                    )}
-                    <div className="inline-block mt-2 mb-2 px-1 py-1 text-sm text-gray-400 flex items-center">
-                      Similarity score: {score}
-                      <div className="relative ml-1 group">
-                        <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400" />
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-gray-500 text-white text-xs rounded py-1 px-2 hidden group-hover:block whitespace-nowrap">
-                          Cosine similarity score between 0 – 1, higher is more similar.{" "}
-                          <a
-                            href="https://www.pinecone.io/learn/vector-similarity?utm_source=shop-the-look&utm_medium=referral"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-300 hover:text-blue-200"
+                        ) : (
+                          <video
+                            className="w-full rounded-md"
+                            controls
+                            preload="metadata"
+                            id={`video-${i}`}
                           >
-                            About vector similarity.
-                          </a>
+                            <source src={url} type="video/mp4" />
+                          </video>
+                        )}
+
+                        <div className="mt-2 text-sm text-gray-600 flex items-center">
+                          Similarity score: {r.score.toFixed(4)}
+                          <div className="relative ml-1 group">
+                            <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                            <div className="
+                              absolute 
+                              bot tom-full 
+                              left-1/2 
+                              transform -translate-x-1/2 
+                              mb-1 
+                              bg-gray-700 
+                              text-white 
+                              text-xs 
+                              rounded 
+                              py-1 px-2 
+                              whitespace-nowrap 
+                              hidden 
+                              group-hover:block
+                              ">
+                              Cosine similarity score between 0–1, higher is more similar.{' '}
+                              <a
+                                href="https://www.pinecone.io/learn/vector-similarity"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline ml-1"
+                              >
+                                Learn more
+                              </a>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </div>
         </div>
 
         <Footer />
