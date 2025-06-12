@@ -1,5 +1,6 @@
 "use client";
 
+// app/page.tsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import videojs from "video.js";
@@ -18,6 +19,7 @@ import {
 } from "./components/Icons";
 import Footer from "./components/Footer";
 import { handleFileUpload } from "./components/FileUploadHandler";
+import Nav from "./components/Navbar";  // <-- updated import
 
 // Handles Python backend API URL based on the environment
 const API_URL = (() => {
@@ -118,7 +120,7 @@ export default function Home() {
       referrer: document.referrer,
       loadTime: performance.now(),
       language: navigator.language,
-      totalVectors: totalVectors,
+      totalVectors,
       appVersion: process.env.NEXT_PUBLIC_APP_VERSION || "unknown",
     };
 
@@ -134,7 +136,6 @@ export default function Home() {
         console.error("Error fetching total vectors:", error);
       }
     };
-
     fetchTotalVectors();
   }, []);
 
@@ -200,7 +201,6 @@ export default function Home() {
     if (isInputEmpty) return;
 
     setShowSuggestions(false);
-
     resetSearchState();
 
     setIsSearching(true);
@@ -210,17 +210,14 @@ export default function Home() {
     setErrorMessage(null);
     setIsLoadingResults(true);
     const startTime = Date.now();
+
     try {
       const response = await axios.post(`${API_URL}/api/search/text`, { query });
       setResults(response.data.results);
       const endTime = Date.now();
       setSearchTime(endTime - startTime);
       setIsSearchComplete(true);
-      track("search_results", {
-        searchType,
-        query,
-        searchTime,
-      });
+      track("search_results", { searchType, query, searchTime });
     } catch (error) {
       console.error("Error during text search:", error);
       if (axios.isAxiosError(error) && error.response) {
@@ -292,9 +289,9 @@ export default function Home() {
     }
   };
 
-  const getScoreLabel = (score: number) => {
-    return { score: score.toFixed(4) };
-  };
+  const getScoreLabel = (score: number) => ({
+    score: score.toFixed(4),
+  });
 
   const getVideoId = (result: Result, index: number) =>
     `video-${index}-${result.metadata.s3_public_url}`;
@@ -305,7 +302,6 @@ export default function Home() {
         <title>Sock Scout</title>
       </Head>
 
-      {/* Make this container relative so we can absolutely position "Feedback" */}
       <div
         className={`relative flex flex-col items-center justify-start min-h-screen bg-gray-50 ${
           dragging ? "border-4 border-dashed border-blue-500" : ""
@@ -314,26 +310,19 @@ export default function Home() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* ─── Feedback link in top-right ─── */}
-        <a
-          href="https://forms.gle/4jk3KpF7vJ41efph6"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute top-4 right-4 text-sm text-gray-600 hover:text-gray-800"
-        >
-          Feedback
-        </a>
+        {/* ─── Global navigation bar with Feedback button ─── */}
+        <Nav />
 
-        {/* ─── Top section: white background from the very top down past the search bar ─── */}
+        {/* ─── Top section: white background down past the search bar ─── */}
         <div className="w-full bg-white pb-8 border-b border-gray-200">
-          {/* Notice the added "mx-auto" on this line so that max-w-6xl truly centers */}
           <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 space-y-4 text-center">
             <h1 className="font-sans font-bold text-7xl text-[#CC2929]">
               Find your perfect sock
             </h1>
             <p className="font-sans text-xl text-gray-800 mb-4">
-              Our semantic AI search understands the nuances of your sock preferences, allowing you to find the perfect match
-              with text or image.
+              Our semantic AI search understands the nuances of your sock
+              preferences, allowing you to find the perfect match with text or
+              image.
             </p>
             <div className="max-w-xl mx-auto relative mt-6">
               <form onSubmit={handleSubmit} className="flex items-center">
@@ -449,30 +438,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ─── Below the search bar: light gray background (`rgb(234,236,240)`) ─── */}
-        {/* Notice the added "mx-auto" here as well so that results are also centered */}
+        {/* ─── Below the search bar: light gray background ─── */}
         <div className="max-w-6xl w-full px-4 md:px-0 mt-6 mx-auto">
           {isSearchComplete && searchTime !== null && totalVectors !== null && (
             <div className="ml-1 mb-2 flex items-center text-left text-gray-700">
               <p>
                 Searched {totalVectors.toLocaleString()} styles
                 {searchType === "text" && (
-                  <>
-                    {" "}
-                    for <strong className="text-indigo-800">{query}</strong>
-                  </>
+                  <> for <strong className="text-indigo-800">{query}</strong></>
                 )}
                 {searchType === "image" && (
-                  <>
-                    {" "}
-                    for <strong className="text-indigo-800">your image</strong>
-                  </>
+                  <> for <strong className="text-indigo-800">your image</strong></>
                 )}
                 {searchType === "video" && (
-                  <>
-                    {" "}
-                    for <strong className="text-indigo-800">your video</strong>
-                  </>
+                  <> for <strong className="text-indigo-800">your video</strong></>
                 )}
               </p>
               <button
@@ -525,7 +504,10 @@ export default function Home() {
                     ) : (
                       <div className="video-container mt-2 rounded hover-shadow">
                         <video id={videoId} className="video-js vjs-default">
-                          <source src={result.metadata.s3_public_url} type="video/mp4" />
+                          <source
+                            src={result.metadata.s3_public_url}
+                            type="video/mp4"
+                          />
                           Your browser does not support the video tag.
                         </video>
                       </div>
