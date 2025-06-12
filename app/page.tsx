@@ -329,11 +329,11 @@ export default function Home() {
           {/* Notice the added "mx-auto" on this line so that max-w-6xl truly centers */}
           <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 space-y-4 text-center">
             <h1 className="font-sans font-bold text-7xl text-[#CC2929]">
-              Sock Scout
+              Find your perfect sock
             </h1>
             <p className="font-sans text-xl text-gray-800 mb-4">
-              Beyond keywords: AI that understands the idea behind your words or
-              pics—then finds the socks.
+              Our semantic AI search understands the nuances of your sock preferences, allowing you to find the perfect match
+              with text or image.
             </p>
             <div className="max-w-xl mx-auto relative mt-6">
               <form onSubmit={handleSubmit} className="flex items-center">
