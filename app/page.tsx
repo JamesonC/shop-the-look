@@ -68,11 +68,11 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
   const suggestions = [
-    "Food",
+    "Stripes",
     "Clouds",
     "University",
-    "Jetstream Stripes",
-    "Vintage Propeller",
+    "America",
+    "Surprise me",
   ];
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion);
@@ -286,7 +286,7 @@ export default function Home() {
 
         {/* Hero / search */}
         <div className="w-full bg-white pb-8 border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center space-y-4">
+          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center space-y-6">
             <h1 className="text-5xl md:text-6xl font-bold text-[#171111]">
               Find your perfect sock
             </h1>
