@@ -24,12 +24,12 @@ const Footer: React.FC = () => {
         </a>
         , and{' '}
         <a
-          href="https://cloud.google.com"
+          href="https://aws.amazon.com/s3/"
           target="_blank"
           rel="noopener noreferrer"
           className="text-indigo-800 hover:underline"
         >
-          Google Cloud
+          AWS S3
         </a>
         .
       </p>
