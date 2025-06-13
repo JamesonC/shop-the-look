@@ -2,10 +2,11 @@
 
 The Image and Video Embedding Processor scripts were made to easily process a folder of images and videos from Amazon S3, generate embeddings using Vertex AI, and upsert them to a Pinecone index. Both scripts are optimized for performance, featuring parallel processing and built-in rate limit handling (as the Vertex AI endpoint has a maximum of about 200 requests per second).
 
-This folder contains two scripts:
+This folder contains the following scripts:
 
 1. [Image Embedding Processor](#image-embedding-processor)
 2. [Video Embedding Processor](#video-embedding-processor)
+3. [Check Environment](#check-environment)
 
 # Requirements
 
@@ -93,6 +94,7 @@ Replace the placeholders with your actual values:
 
 For more detailed instructions, refer to the comments in the script file.
 
+
 # Video Embedding Processor
 
 This script processes videos from Amazon S3, generates embeddings using Vertex AI, and upserts them to a Pinecone index.
@@ -120,3 +122,23 @@ Replace the placeholders with your actual values:
 - Video embedding settings (INTERVAL_SEC, START_OFFSET_SEC, END_OFFSET_SEC) can be adjusted in the script
 
 For more detailed instructions, refer to the comments in the script file. 
+
+# Check Environment
+
+`check_env.py` is a small helper that loads `api.config.settings` and reports
+which `.env` file was used.
+
+## Usage
+
+Run the script directly:
+
+```
+python check_env.py
+```
+
+The output is a short JSON object containing the Google Cloud project ID and the
+name of the environment file that was loaded, for example:
+
+```
+{"project_id": "my-project", "env_file": ".env.development"}
+```

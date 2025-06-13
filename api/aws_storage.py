@@ -13,9 +13,22 @@ def _split_bucket_prefix(path: str) -> tuple[str, str]:
     bucket = settings.s3_bucket_name or ""
     path = (path or "").lstrip("/")
 
+    # Remove any known bucket prefix so that URLs use the configured bucket.
+    known_buckets = {
+        "sock-designs-bucket",
+        "sock-design-bucket-development",
+        "sock-design-bucket-preview",
+    }
+
     if bucket and path.startswith(bucket + "/"):
-        prefix = path[len(bucket) + 1 :]
-    elif not bucket and "/" in path:
+        path = path[len(bucket) + 1 :]
+    else:
+        for kb in known_buckets:
+            if path.startswith(kb + "/"):
+                path = path[len(kb) + 1 :]
+                break
+
+    if not bucket and "/" in path:
         bucket, prefix = path.split("/", 1)
     else:
         prefix = path

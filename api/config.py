@@ -7,8 +7,12 @@ from dotenv import load_dotenv
 
 # Load environment variables from a file before accessing them.
 # Priority: DOTENV_PATH env var, otherwise fall back to `.env.<ENVIRONMENT>`.
-env_file = os.getenv("DOTENV_PATH") or f".env.{os.getenv('ENVIRONMENT', 'development')}"
-load_dotenv(dotenv_path=env_file, override=True)
+# If ENVIRONMENT is not set, fall back to VERCEL_ENV which is populated by
+# Vercel during deployments (e.g. "preview" or "production").
+env = os.getenv("ENVIRONMENT") or os.getenv("VERCEL_ENV", "development")
+env_file = os.getenv("DOTENV_PATH") or f".env.{env}"
+dotenv_override = os.getenv("DOTENV_OVERRIDE", "true").lower() == "true"
+load_dotenv(dotenv_path=env_file, override=dotenv_override)
 
 class Settings:
     def __init__(self):
@@ -117,6 +121,5 @@ class Settings:
         }
 
         return url, headers, data
-    
-print("DEBUG: PINECONE_TOP_K =", os.getenv("PINECONE_TOP_K"))
+
 settings = Settings()
