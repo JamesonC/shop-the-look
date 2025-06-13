@@ -286,68 +286,98 @@ export default function Home() {
 
         {/* Hero / search */}
         <div className="w-full bg-white pb-8 border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center space-y-6">
+          <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center">
             <h1 className="text-5xl md:text-6xl font-bold text-[#171111]">
               Find Client-Winning Sock Inspiration
             </h1>
-            <p className="text-xl font-medium text-gray-700">
-              Uncover the perfect past sock inspiration using AI search by text or 
+            <p className="mx-auto md:text-xl font-normal text-gray-700 mt-4 leading-relaxed">
+              Uncover the perfect past sock inspiration using AI search by text or
               image, to fit any client&apos;s needs.
             </p>
 
-            <div className="max-w-xl mx-auto mt-6 relative">
+            <div className="max-w-xl mx-auto mt-8 relative">
               <form onSubmit={handleSubmit} className="flex items-center">
-                <div className="flex-grow flex items-center bg-[#f4f0f0] rounded-full shadow border">
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={handleInputChange}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder="Describe the sock or drag in an image"
-                    className="w-full px-6 py-3 text-[#876464] placeholder:text-[#876464] bg-[#f4f0f0] rounded-full focus:outline-none"
-                    disabled={isUploading || isSearching}
-                  />
-                  {!isInputEmpty && (
-                    <>
+                <div className="flex items-center flex-grow max-w-2xl space-x-4">
+                  {/* text input + clear */}
+                  <div className="relative flex-grow">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={handleInputChange}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                      placeholder="Describe the sock or drag in an image"
+                      disabled={isUploading || isSearching}
+                      className="
+                        w-full
+                        bg-gray-50 border border-gray-300 shadow-sm rounded-full
+                        py-3 pl-4 pr-16
+                        text-gray-900 placeholder:text-gray-500
+                        hover:border-gray-400
+                        focus:outline-none focus:ring-2 focus:ring-[#E53429]
+                        transition-colors
+                      "
+                    />
+                    {query && (
                       <button
                         type="button"
                         onClick={clearResults}
-                        className="text-gray-400 hover:text-gray-600 px-2 focus:outline-none"
+                        aria-label="Clear search"
+                        className="
+                          absolute top-1/2 right-4
+                          transform -translate-y-1/2
+                          h-5 w-5 flex items-center justify-center
+                          text-gray-400 hover:text-gray-600
+                          focus:outline-none focus:ring-2 focus:ring-[#E53429]
+                          rounded-full
+                        "
                       >
-                        ×
+                        &times;
                       </button>
-                      <VerticalDivider />
-                    </>
-                  )}
+                    )}
+                  </div>
+
+                  {/* upload */}
                   <label
                     htmlFor="upload-input"
-                    className={`cursor-pointer px-4 ${isUploading || isSearching
+                    className={`
+                      h-12 w-12 bg-gray-50 border border-gray-300 shadow-sm
+                      rounded-full flex items-center justify-center
+                      cursor-pointer transition-colors
+                      focus:outline-none focus:ring-2 focus:ring-[#E53429]
+                      ${isUploading || isSearching
                         ? "text-gray-400"
-                        : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                      }
+                    `}
                   >
                     <PhotoFrameIcon className="h-6 w-6" />
                   </label>
+                  <input
+                    id="upload-input"
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isUploading || isSearching}
+                  />
+
+                  {/* submit */}
+                  <button
+                    type="submit"
+                    className={`
+                      h-12 w-12 rounded-full flex items-center justify-center
+                      focus:outline-none focus:ring-2 focus:ring-[#E53429] transition-colors
+                      ${isInputEmpty
+                        ? "bg-gray-50 border border-gray-300 text-gray-400 cursor-not-allowed"
+                        : "bg-red-600 text-white hover:bg-red-700"
+                      }
+                    `}
+                    disabled={isInputEmpty || isUploading || isSearching}
+                  >
+                    <MagnifyingGlassIcon className="h-6 w-6" />
+                  </button>
                 </div>
-                <input
-                  id="upload-input"
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  disabled={isUploading || isSearching}
-                />
-                <button
-                  type="submit"
-                  className={`ml-2 p-2 focus:outline-none ${isInputEmpty
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-red-600 hover:text-red-700"
-                    }`}
-                  disabled={isInputEmpty || isUploading || isSearching}
-                >
-                  <MagnifyingGlassIcon className="h-6 w-6" />
-                </button>
               </form>
 
               {/* Suggestions */}
@@ -417,11 +447,11 @@ export default function Home() {
                       <div
                         key={key}
                         className="
-                          group 
-                          bg-white 
-                          p-2 
-                          rounded-lg 
-                          transition-transform transition-shadow 
+                          group
+                          bg-white
+                          p-2
+                          rounded-lg
+                          transition-transform transition-shadow
                           hover:-translate-y-1 hover:shadow-lg
                         "
                       >
@@ -446,22 +476,24 @@ export default function Home() {
                           Similarity score: {r.score.toFixed(4)}
                           <div className="relative ml-1 group">
                             <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
-                            <div className="
-                              absolute 
-                              bot tom-full 
-                              left-1/2 
-                              transform -translate-x-1/2 
-                              mb-1 
-                              bg-gray-700 
-                              text-white 
-                              text-xs 
-                              rounded 
-                              py-1 px-2 
-                              whitespace-nowrap 
-                              hidden 
-                              group-hover:block
-                              ">
-                              Cosine similarity score between 0–1, higher is more similar.{' '}
+                            <div
+                              className="
+                                absolute
+                                bottom-full
+                                left-1/2
+                                transform -translate-x-1/2
+                                mb-1
+                                bg-gray-700
+                                text-white
+                                text-xs
+                                rounded
+                                py-1 px-2
+                                whitespace-nowrap
+                                hidden
+                                group-hover:block
+                              "
+                            >
+                              Cosine similarity score between 0–1, higher is more similar.{" "}
                               <a
                                 href="https://www.pinecone.io/learn/vector-similarity"
                                 target="_blank"
