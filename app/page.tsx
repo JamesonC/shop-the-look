@@ -288,12 +288,11 @@ export default function Home() {
         <div className="w-full bg-white pb-8 border-gray-200">
           <div className="max-w-6xl mx-auto px-4 md:px-0 mt-12 text-center space-y-6">
             <h1 className="text-5xl md:text-6xl font-bold text-[#171111]">
-              Find your perfect sock
+              Find Client-Winning Sock Inspiration
             </h1>
-            <p className="text-lg text-gray-800">
-              Our semantic AI search understands the nuances of your sock
-              preferences, allowing you to find the perfect match with text or
-              image.
+            <p className="text-xl font-medium text-gray-700">
+              Uncover the perfect past sock inspiration using AI search by tet or 
+              image, to fit any client's needs.
             </p>
 
             <div className="max-w-xl mx-auto mt-6 relative">
