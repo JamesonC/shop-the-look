@@ -26,8 +26,9 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 1. Clone the repository
 2. Install dependencies with `npm install` and `pip install -r requirements.txt`
-3. Copy `.env.development.example` to `.env.development` and add your API keys.
-   At a minimum you'll need Google Cloud, Pinecone and AWS credentials.
+3. Copy `.env.example` to `.env.development`, `.env.preview`, or `.env.production` as needed.
+   Secrets for Preview and Production live only in Vercel, so the files in your repo
+   should contain placeholder values.
 4. Start the servers:
 
 ```bash
@@ -42,7 +43,7 @@ See [scripts/README.md](scripts/README.md) for instructions on embedding and upl
 
 ## Environment Variables
 
-The application relies on several variables defined in `.env.development`:
+The application relies on several variables defined in `.env.example`:
 
 - `GOOGLE_CREDENTIALS_BASE64` – base64‑encoded Google Cloud service account
 - `GOOGLE_CLOUD_PROJECT_ID` and `GOOGLE_CLOUD_PROJECT_LOCATION`
