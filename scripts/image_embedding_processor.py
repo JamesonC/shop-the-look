@@ -14,10 +14,10 @@ Required Python packages:
 - vertexai
 - boto3
 - pinecone-client
-- python-dotenv        # to load .env.development into os.environ :contentReference[oaicite:0]{index=0}
+ - python-dotenv        # to load .env.<ENVIRONMENT> (or DOTENV_PATH) into os.environ
 
 Usage:
-1. Set up environment variables in `.env.development` (see below).
+1. Set up environment variables in `.env.<ENVIRONMENT>` (defaults to `.env.development`) or set ``DOTENV_PATH``.
 2. Run the script with the required arguments:
    python image_embedding_processor.py -p your-gc-project-id -b your-s3-bucket-name -f your-s3-folder-name -i your-pinecone-index-name
 """
@@ -31,7 +31,7 @@ import tempfile
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from dotenv import load_dotenv                      # Load environment variables from .env.development :contentReference[oaicite:1]{index=1}
+from dotenv import load_dotenv  # Load environment variables from .env files
 import vertexai                                     # Vertex AI SDK for Python :contentReference[oaicite:2]{index=2}
 from vertexai.vision_models import MultiModalEmbeddingModel, Image  # Multimodal embedding model :contentReference[oaicite:3]{index=3}
 
@@ -41,8 +41,13 @@ import boto3                                         # AWS S3 client
 from pinecone import Pinecone                         # New Pinecone constructor (v3.x+) :contentReference[oaicite:6]{index=6}
 
 # Constants
-# Load .env.development so that os.getenv(...) picks up PINECONE_API_KEY, GOOGLE_CREDENTIALS_BASE64, etc.
-load_dotenv(os.path.join(os.path.dirname(__file__), "../.env.development"))  # :contentReference[oaicite:7]{index=7}
+# Load environment variables using the same logic as ``api.config``. ``DOTENV_PATH``
+# overrides the automatically derived ``../.env.<ENVIRONMENT>`` file.
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+dotenv_path = os.getenv("DOTENV_PATH") or os.path.join(
+    os.path.dirname(__file__), f"../.env.{ENVIRONMENT}"
+)
+load_dotenv(dotenv_path=dotenv_path, override=True)
 
 REGION = os.getenv("GOOGLE_CLOUD_PROJECT_LOCATION", "us-east1")  # e.g., "us-east1" :contentReference[oaicite:8]{index=8}
 FILE_TYPE = 'image'
