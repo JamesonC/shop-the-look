@@ -3,6 +3,7 @@ node_modules
 
 # Ignore only the actual secret‐holding files, not the “.example” template:
 .env.development
+.env.preview
 .env.production
 .env.local
 

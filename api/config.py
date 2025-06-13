@@ -6,9 +6,25 @@ from google.auth.transport.requests import Request
 from dotenv import load_dotenv
 
 # Load environment variables from a file before accessing them.
-# Priority: DOTENV_PATH env var, otherwise fall back to `.env.<ENVIRONMENT>`.
-env_file = os.getenv("DOTENV_PATH") or f".env.{os.getenv('ENVIRONMENT', 'development')}"
+# Determine the target environment in order of precedence:
+#   1. ``DOTENV_PATH`` (exact path override)
+#   2. ``ENVIRONMENT``
+#   3. ``VERCEL_ENV``
+#   4. ``NODE_ENV``
+#   5. default ``"development"``
+dotenv_override = os.getenv("DOTENV_PATH")
+env_name = (
+    os.getenv("ENVIRONMENT")
+    or os.getenv("VERCEL_ENV")
+    or os.getenv("NODE_ENV")
+    or "development"
+)
+env_file = dotenv_override or f".env.{env_name}"
 load_dotenv(dotenv_path=env_file, override=True)
+if dotenv_override:
+    print(f"DEBUG: Loading env vars from override {env_file}")
+else:
+    print(f"DEBUG: Loading env vars for {env_name} from {env_file}")
 
 class Settings:
     def __init__(self):
