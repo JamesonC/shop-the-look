@@ -292,7 +292,7 @@ export default function Home() {
             </h1>
             <p className="text-xl font-medium text-gray-700">
               Uncover the perfect past sock inspiration using AI search by text or 
-              image, to fit any client's needs.
+              image, to fit any client&apos;s needs.
             </p>
 
             <div className="max-w-xl mx-auto mt-6 relative">
