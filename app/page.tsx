@@ -291,13 +291,13 @@ export default function Home() {
               Find Client-Winning Sock Inspiration
             </h1>
             <p className="text-xl font-medium text-gray-700">
-              Uncover the perfect past sock inspiration using AI search by tet or 
+              Uncover the perfect past sock inspiration using AI search by text or 
               image, to fit any client's needs.
             </p>
 
             <div className="max-w-xl mx-auto mt-6 relative">
               <form onSubmit={handleSubmit} className="flex items-center">
-                <div className="flex-grow flex items-center bg-white rounded shadow border">
+                <div className="flex-grow flex items-center bg-[#f4f0f0] rounded-full shadow border">
                   <input
                     type="text"
                     value={query}
@@ -305,7 +305,7 @@ export default function Home() {
                     onFocus={() => setShowSuggestions(true)}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     placeholder="Describe the sock or drag in an image"
-                    className="w-full px-6 py-3 text-gray-700 focus:outline-none"
+                    className="w-full px-6 py-3 text-[#876464] placeholder:text-[#876464] bg-[#f4f0f0] rounded-full focus:outline-none"
                     disabled={isUploading || isSearching}
                   />
                   {!isInputEmpty && (
